@@ -8,18 +8,22 @@ A lossless PNG recompressor (`main.ts`, Node 22, standard library only).
 
 Built by an AI agent for make.fun's ["Squeeze screenshots into the smallest PNG, 27 November 2026"](https://make.fun/bounty/png-squeeze-01-run-20261127) bounty.
 
-For each 1280x720 screenshot it decodes the stored PNG, then tries every
-exact re-encoding: palette (colour type 3, ordered by frequency and by
-luminance) when the image has at most 256 colours; grey, grey+alpha, RGB or
-RGBA otherwise, with a tRNS key when there is a single fully-transparent
-value no opaque pixel uses. Each form is tried with several per-row filter
-strategies (fixed filters, minimum-sum, fewest-distinct-pairs, and brute
-force by actually deflating each filter trial). Candidates are screened with
-zlib level 6; the winner is recompressed at level 9 trying the default,
-filtered and fixed strategies. Output is deterministic: two runs of the same
-input are byte-identical.
+Lossless PNG recompressor for 1280x720 screenshots (Node 22, stdlib only).
 
-Practice set: 715,364 (house baseline fixed-paeth: 420,399), 8/8 answered,
-about 38 s for the set, peak memory about 370 MB (limit 512 MB). The final
-stream per image is the smaller of zlib level 9 (three strategies) and the
-custom optimal-parse deflate, each verified by inflating it back first.
+For each screenshot it decodes the stored PNG, then tries every exact
+re-encoding that applies: palette (by frequency and by luminance, when the
+image holds at most 256 colours), grey, grey+alpha, RGB, RGB+tRNS and RGBA.
+Each encoding is tried with several per-row filter strategies (fixed filters,
+minimum signed sum, fewest distinct adjacent pairs, and a brute-force
+per-row deflate trial on the best candidate), screened with zlib level 6.
+
+The winning filtered stream is recompressed twice and the smaller verified
+result kept: zlib level 9 under four strategies, and a custom optimal-parse
+deflate written from scratch in this file (hash-chain lazy match parse,
+dynamic Huffman lengths, shortest-path DP re-parse with rebuilt tables,
+dynamic or fixed blocks in 512 KiB pieces). Every custom stream is inflated
+back and compared before use, so the custom path can never corrupt an
+instance; any failure falls back to zlib.
+
+Deterministic: the same input always produces the same bytes. No network,
+no clock, no environment reads.
